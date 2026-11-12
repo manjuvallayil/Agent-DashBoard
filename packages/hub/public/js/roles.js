@@ -15,12 +15,12 @@
     const select = $("#roleMember");
     if (!select) return;
     const chosen = select.value;
-    select.innerHTML = '<option value="">选择 Agent / Staff</option>' + (data.nodes || []).map(node => `<option value="${node.nodeId}">${node.agentName || node.nodeId}</option>`).join("");
+    select.innerHTML = '<option value="">Select Agent / Staff</option>' + (data.nodes || []).map(node => `<option value="${node.nodeId}">${node.agentName || node.nodeId}</option>`).join("");
     if ([...select.options].some(option => option.value === chosen)) select.value = chosen;
     const online = data.online || {};
     const active = select.value || online.onDuty || "";
     $("#roleValues").value = (online.roles || {})[active]?.join(", ") || "";
-    $("#dutySave").textContent = online.onDuty ? `值班：${(data.nodes || []).find(node => node.nodeId === online.onDuty)?.agentName || online.onDuty}` : "设为值班";
+    $("#dutySave").textContent = online.onDuty ? `On duty: ${(data.nodes || []).find(node => node.nodeId === online.onDuty)?.agentName || online.onDuty}` : "Set On Duty";
   }
   $("#roleMember").onchange = () => populate(latest || { nodes: [], online: {} });
   $("#roleSave").onclick = async () => {

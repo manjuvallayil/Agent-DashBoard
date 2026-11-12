@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -9,11 +9,11 @@
 <body>
   <header>
     <div class="brand"><span class="dot"></span><b>AGENTS HQ</b><small>LOCAL AGENT NODE</small></div>
-    <div class="header-right"><span id="clock"></span><button id="refresh">刷新检测</button></div>
+    <div class="header-right"><span id="clock"></span><button id="refresh">Refresh Check</button></div>
   </header>
   <main>
     <section class="hero">
-      <div><p class="eyebrow">LOCAL DASHBOARD · INDEPENDENT MODE</p><h1 id="name">AGENT NODE</h1><p id="host">正在读取本机状态…</p></div>
+      <div><p class="eyebrow">LOCAL DASHBOARD · INDEPENDENT MODE</p><h1 id="name">AGENT NODE</h1><p id="host">Reading local status…</p></div>
       <div class="hero-status"><span class="dot"></span><span id="heroState">CHECKING</span></div>
     </section>
     <section class="workspace">
@@ -30,15 +30,15 @@
       <section class="meeting">
         <div class="meeting-head">
           <h2>LOCAL AGENT CHAT</h2>
-          <p class="muted">直接与本机 Agent 对话；Agents HQ 离线时仍可使用。</p>
+          <p class="muted">Chat directly with the local agent; still available when Agents HQ is offline.</p>
         </div>
         <div id="chat" class="messages"></div>
         <form id="chatForm" class="composer">
-          <input id="message" maxlength="4000" placeholder="向本机 Agent 发送消息…" autocomplete="off">
-          <button>发送</button>
+          <input id="message" maxlength="4000" placeholder="Send a message to the local agent…" autocomplete="off">
+          <button>Send</button>
         </form>
         <details class="utility" open>
-          <summary>LOCAL EVENT STREAM <span>点击收起 / 展开</span></summary>
+          <summary>LOCAL EVENT STREAM <span>Click to collapse / expand</span></summary>
           <div id="events" class="events"></div>
         </details>
       </section>
