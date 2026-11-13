@@ -337,7 +337,7 @@ agent's reply in that thread. This script adds one demo message each time it run
 and **1 untracked file** (`docs/RESUME.md`). Services were running on 3000/3100/3200 when
 this was written, but they may stop when the chat session ends.
 
-1. **Renamed the demo staff member** to **`Manju (demo staff)`** through the Staff Portal
+1. **Renamed the demo staff member** to **`Manju (intern staff)`** through the Staff Portal
    `/api/profile` endpoint. Updated:
    - `packages/staff/config/staff.local.json` (gitignored)
    - Hub device entry and online worker entry in `data/hub-state.json` (gitignored)
@@ -384,7 +384,7 @@ A CJK scan script was used over `*.js|html|css|md|json|sh|bat` (excluding `.git`
   3. restart the Hub and open `http://127.0.0.1:3000` to create a new password.
   This affects only this machine (the file is gitignored).
 - Approved demo devices: `intern-demo-node` ("Intern Demo Agent") and
-  `intern-demo-staff` ("Manju (demo staff)").
+  `intern-demo-staff` ("Manju (intern staff)").
 - Stale pending requests still present: `Gauss`, `Bowen`, `Jane`, `Pisro`, `Pitt`.
 
 ---
