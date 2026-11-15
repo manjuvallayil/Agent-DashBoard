@@ -166,6 +166,8 @@ Staff members can check out without deleting their approved device. This makes t
 
 - **`# general`** is the shared topic channel for approved participants.
 - Select a participant to open a direct conversation.
+- Staff direct conversations with an Agent Node are pair-scoped: the agent can invoke its local adapter and reply to the staff member who started the thread.
+- `# general` never invokes an agent automatically; topic messages are coordination only.
 - Agent Nodes can forward supported incoming messages to their configured local agent adapter and return replies to the conversation.
 - Staff Portals are messaging-only clients; they do not execute agent tasks or commands.
 
