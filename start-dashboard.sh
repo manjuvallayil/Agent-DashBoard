@@ -39,8 +39,8 @@ update_then_start() {
     read -r -p "Enroll this copy and download the current release? [y/N] " answer
     [[ "$answer" =~ ^[Yy]$ ]] || return
     git init -q || return
-    git remote add origin https://github.com/jilajial/Agent-DashBoard.git 2>/dev/null || true
-    git remote set-url origin https://github.com/jilajial/Agent-DashBoard.git || return
+    git remote add origin https://github.com/manjuvallayil/Agent-DashBoard.git 2>/dev/null || true
+    git remote set-url origin https://github.com/manjuvallayil/Agent-DashBoard.git || return
     git fetch --quiet origin main && git reset --hard origin/main || { echo "Update failed."; return; }
   else
     if [ -n "$(git status --porcelain --untracked-files=no)" ]; then

@@ -26,4 +26,10 @@ function isParticipant(conversationId, nodeId) {
   return conversationParticipants(conversationId).includes(String(nodeId || ""));
 }
 
-module.exports = { PROTOCOL_VERSION, SAFE_ACTIONS, CONFIRMED_ACTIONS, now, safeText, conversationFor, conversationParticipants, isParticipant };
+// Pure form of the Hub's dm: routing, so it can be unit tested without server state.
+function dmRecipients(conversationId, availableIds, exclude = "") {
+  const available = new Set(Array.isArray(availableIds) ? availableIds : []);
+  return conversationParticipants(conversationId).filter(nodeId => nodeId !== exclude && available.has(nodeId));
+}
+
+module.exports = { PROTOCOL_VERSION, SAFE_ACTIONS, CONFIRMED_ACTIONS, now, safeText, conversationFor, conversationParticipants, isParticipant, dmRecipients };

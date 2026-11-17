@@ -1,8 +1,8 @@
-# Pitt Meeting Hub architecture
+# Agents HQ architecture
 
 ```
 Windows 10 controller
-  Pitt Meeting Hub
+  Agents HQ
      │  meeting, task and audit API
      │  authenticated heartbeat only
      ├──────── Jane Node / TechTalentsPC

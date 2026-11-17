@@ -173,7 +173,7 @@ Staff members can check out without deleting their approved device. This makes t
 
 ### Task dispatch
 
-The Hub can register and dispatch tasks to online Agent Nodes. Tasks are intended for ordinary operational work such as status checks, reports, drafts, and meeting follow-ups. High-impact actions should remain behind the relevant local operational approval process.
+The Hub can register and dispatch tasks to online Agent Nodes. Tasks are intended for ordinary operational work such as status checks, reports, drafts, and meeting follow-ups. High-impact actions should remain behind the relevant local operational approval process. Task history is bounded at 200 entries, matching the limits on messages, events, and per-device inboxes.
 
 ## Updating
 
@@ -200,6 +200,7 @@ For an always-on Agent Node, use `scripts/agent-node.service` as a user-level sy
 - Use the Hub only from its own local browser for administrative actions.
 - Device pairing uses locally generated RSA identities and signed requests.
 - Hub approval is required before a device joins the roster or participates in conversations.
+- The Hub applies in-memory limits: pairing requests are capped at 30 per minute per IP, and staff messages that trigger an Agent Node's AI are limited to one every 10 seconds per staff member. Both limits reset when the Hub restarts.
 - API keys, passwords, session cookies, SSH private keys, and model-provider credentials must not be placed in repository files or dashboard forms.
 - Capability reporting identifies whether a tool appears available; it does not reveal secret values.
 

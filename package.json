@@ -1,8 +1,8 @@
 {
-  "name": "pitt-meeting-hub",
+  "name": "agents-hq",
   "version": "0.2.0",
   "private": true,
-  "description": "Cross-platform meeting hub and local agent dashboard nodes.",
+  "description": "LAN-first coordination hub and local agent dashboards.",
   "engines": {
     "node": ">=22.13.0"
   },
@@ -11,6 +11,7 @@
     "node": "node packages/node/server/index.js",
     "staff": "node packages/staff/server/index.js",
     "online": "node online/server/index.js",
-    "check": "node --check packages/hub/server/index.js && node --check packages/node/server/index.js && node --check packages/staff/server/index.js && node --check online/server/index.js"
+    "check": "node --check packages/hub/server/index.js && node --check packages/node/server/index.js && node --check packages/staff/server/index.js && node --check online/server/index.js",
+    "test": "node --test \"tests/*.test.js\""
   }
 }

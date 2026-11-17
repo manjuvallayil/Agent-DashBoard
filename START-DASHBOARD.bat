@@ -115,8 +115,8 @@ if not exist ".git" (
   choice /C YN /N /M "Selection"
   if errorlevel 2 goto menu
   git init >nul || goto updateFailed
-  git remote add origin https://github.com/jilajial/Agent-DashBoard.git 2>nul
-  git remote set-url origin https://github.com/jilajial/Agent-DashBoard.git || goto updateFailed
+  git remote add origin https://github.com/manjuvallayil/Agent-DashBoard.git 2>nul
+  git remote set-url origin https://github.com/manjuvallayil/Agent-DashBoard.git || goto updateFailed
   git fetch --quiet origin main || goto updateFailed
   git reset --hard origin/main || goto updateFailed
   goto restartAfterUpdate

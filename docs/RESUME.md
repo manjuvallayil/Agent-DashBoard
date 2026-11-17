@@ -1,7 +1,7 @@
 # RESUME HERE — Agents HQ handover notes
 
 > **Purpose:** if this chat session is lost, start by reading this file.
-> Last updated: 2026-11-16 · Maintainer: Manju (intern)
+> Last updated: 2026-11-18 · Maintainer: Manju (intern)
 
 ---
 
@@ -28,8 +28,9 @@ You are resuming a handover. This file is the source of truth; do not guess.
 - **Option B is implemented and committed** (pair-scoped `dm:` threads; see §5). Do not
   revert staff direct messages to the shared `private:<agentNodeId>` thread. The leftover
   decisions in §5.4 are still open.
-- **Immediate next step:** ask which §8 task to take. Do not stack unrelated changes on
-  top of the completed Option B work.
+- **Immediate next step:** all seven §8 items were completed on 2026-11-18 (see §6/§8).
+  Review the working tree before committing, then pick a new task. Do not stack unrelated
+  changes on top of the completed work.
 - **Before finishing:** run `npm run check` and the manual check in §10.
 - **Do not** expose the Hub to the public internet, add an admin "shell" endpoint, or let
   Staff Portals dispatch tasks — those are intentional trust-boundary decisions.
@@ -374,7 +375,8 @@ Implementation notes / small deviations:
 - ~~A (quick, shared thread) vs B (correct, pair-scoped)?~~ **B chosen 2026-11-16.**
 - Should all staff invoke agents, or only staff with a configured role?
 - Cooldown/rate limit per staff member and per agent?
-- Show a "thinking…" state in the Staff UI while the Node calls the AI?
+- ~~Show a "thinking…" state in the Staff UI while the Node calls the AI?~~ **Done
+  2026-11-18:** Option A, a lightweight client-side indicator in the Staff UI (§6/§8).
 - Does the reply belong in the same conversation only, or also in `# general`?
 
 ### 5.5 Verify the new `dm:` behavior (copy-paste)
@@ -469,6 +471,30 @@ async function call(id, deviceId, method, path, body) {
 4. **Synced handover docs.** `README.md` describes pair-scoped staff direct chats; this
    file records the decision and verification; `STATUS.md` has the work log; `PROMPT.md`
    holds the updated next-session prompt.
+5. **Cleared the §8 backlog (2026-11-18).** All seven candidate tasks are done:
+   - §8.1 Reject: `POST /api/pair/reject` (admin-only) and a Reject button in the Hub
+     admin UI clear stale pending requests.
+   - §8.2 Update URL: both launchers now enroll
+     `https://github.com/manjuvallayil/Agent-DashBoard.git`.
+   - §8.3 Naming: `package.json` and `docs/ARCHITECTURE.md` use "Agents HQ"; the Node
+     discovery fallback name was updated too. `x-pitt-*` headers and `PITT_*` packets were
+     deliberately left unchanged — they are part of the signed pairing/discovery contract.
+   - §8.4 Tests: `npm test` runs `tests/protocol.test.js` (5 `node:test` cases, zero deps).
+     `dmRecipients()` in `packages/shared/protocol.js` exposes the Hub's `dm:` routing for
+     unit tests. A live two-staff e2e still needs a second approved staff device; scoping
+     is covered at protocol level for now.
+   - §8.5 Limits: 30 pairing requests/minute per IP and a 10s per-staff cooldown on
+     AI-triggering DMs. Both limits are in-memory and reset on Hub restart.
+   - §8.6 Tasks: capped at 200 entries, like messages/events/inbox.
+   - §8.7 Thinking state: Option A — the Staff UI shows "<name> is thinking…" after
+     sending to an agent in a `dm:` thread, cleared when the agent's reply arrives or
+     after 190s. Frontend only; no state, endpoint, or protocol changes.
+   Touched: `package.json`, `start-dashboard.sh`, `START-DASHBOARD.bat`,
+   `docs/ARCHITECTURE.md`, `packages/shared/protocol.js`, `packages/hub/server/index.js`,
+   `packages/hub/public/js/app.js`, `packages/node/server/index.js`,
+   `packages/staff/public/js/app.js`, `packages/staff/public/css/app.css`,
+   `tests/protocol.test.js`, plus `README.md`, this file and `STATUS.md`. All of it was
+   committed together on 2026-11-18.
 
 Verification used:
 
@@ -502,6 +528,25 @@ The manual test added a few clearly labelled `dm-check` demo messages to
 **Option B and these doc updates are committed and pushed.** Check with
 `git status --short`.
 
+Verification for the 2026-11-18 batch:
+
+```bash
+npm run check
+npm test
+node --check packages/shared/protocol.js
+node --check packages/hub/public/js/app.js
+node --check packages/staff/public/js/app.js
+bash -n start-dashboard.sh
+```
+
+Manual (Hub/Node/Staff restarted): topic `201 requiresReply:false`; `dm:` `201
+requiresReply:true`; an immediate second DM was blocked by the cooldown (the staff server
+surfaces the Hub's 429 as `400 Hub returned 429`); OpenClaw replied `pong` in the same
+`dm:` thread and the thread length stayed 8→8 after 8s (no loop). `/api/pair/reject`
+without an admin session returns `401`. 35 invalid `/api/pair/request` calls returned
+23×400 and 12×429. The thinking indicator was checked by code review and `node --check`,
+not in a browser.
+
 ---
 
 ## 7. Local environment facts
@@ -525,19 +570,28 @@ The manual test added a few clearly labelled `dm-check` demo messages to
 
 ## 8. Known issues / candidate next tasks
 
-1. **No reject action for pending devices.** Only `approve` and `revoke` exist, so the
-   five stale requests cannot be cleared from the UI. Good first small PR.
-2. **Update URL mismatch.** `start-dashboard.sh` enrolls
-   `https://github.com/jilajial/Agent-DashBoard.git`, but this clone's remote is
+All seven items from the previous handover were completed on 2026-11-18. The notes are
+kept for history.
+
+1. ~~**No reject action for pending devices.**~~ **Done:** `POST /api/pair/reject`
+   (admin-only) and a Reject button in the Hub admin UI clear stale requests.
+2. ~~**Update URL mismatch.**~~ **Done:** both launchers now use
    `https://github.com/manjuvallayil/Agent-DashBoard.git`.
-3. **Stale naming.** `package.json` name is `pitt-meeting-hub`;
-   `docs/ARCHITECTURE.md` still says "Pitt Meeting Hub"; packet headers use `x-pitt-*`.
-4. **No automated tests.** `npm run check` only parses the four servers. There is also no
-   automated two-staff scoping test for the new `dm:` threads (§5.3).
-5. **No rate limiting** on the unauthenticated `/api/pair/request` endpoint, and no
-   per-staff cooldown for AI-triggering staff DMs.
-6. **`tasks` are unbounded**, unlike messages/events/inbox.
-7. **No "thinking…" state** in the Staff UI while the Node calls the AI (§5.4).
+3. ~~**Stale naming.**~~ **Done (cosmetic only):** `package.json`, `docs/ARCHITECTURE.md`
+   and the Node discovery fallback say Agents HQ. `x-pitt-*` headers and `PITT_*` packets
+   stay unchanged by design — they are part of the signed device protocol.
+4. ~~**No automated tests.**~~ **Done:** `npm test` runs `tests/protocol.test.js` with
+   Node's built-in runner (zero deps), covering pair-scoped DM helpers. A live two-staff
+   e2e still needs a second approved staff device; routing is participant-scoped in code.
+5. ~~**No rate limiting.**~~ **Done:** 30 pairing requests/minute per IP and a 10s
+   per-staff cooldown on AI-triggering DMs, both in-memory and reset on restart.
+6. ~~**`tasks` are unbounded.**~~ **Done:** capped at 200, like the other bounded lists.
+7. ~~**No "thinking…" state.**~~ **Done (Option A):** the Staff UI shows a local
+   "<name> is thinking…" bubble in `dm:` agent threads; no server/state changes.
+
+New candidates (not implemented): per-agent cooldown, configurable limits via local
+config, a Hub-driven thinking state that survives page reload, and a second approved
+staff device for a real two-staff e2e.
 
 ---
 
@@ -573,20 +627,20 @@ You are resuming work on the Agents HQ repo at /home/jason/Agent-DashBoard.
 
 1. Read docs/RESUME.md in full before doing anything. Then read README.md and the files
    listed in RESUME.md §9.
-2. Run `git status --short` and `git diff --stat`. Option B is committed and pushed. If
-   the tree is dirty, inspect the changes before touching README.md, STATUS.md,
-   PROMPT.md, or docs/RESUME.md.
-3. Summarize back to me: what the project does, the current git state, and the remaining
-   items in RESUME.md §8.
-4. Do NOT change code yet. Ask me which §8 task to take. Only after I choose should you
+2. Run `git status --short` and `git diff --stat`. Option B and the §8 backlog are
+   committed. If the tree is dirty, inspect the changes before touching README.md,
+   STATUS.md, PROMPT.md, or docs/RESUME.md.
+3. Summarize back to me: what the project does, the current git state, and the status of
+   RESUME.md §8 (all earlier items are done; new candidates are listed there).
+4. Do NOT change code yet. Ask me what to work on next. Only after I choose should you
    implement it.
 5. Constraints: Node.js >= 22.13, CommonJS, zero npm dependencies, keep endpoint names,
    config keys, element IDs and `*.local.json` shape stable. Never add secrets to tracked
    files. Never expose the Hub publicly.
 6. When implementing, follow RESUME.md §5.3 for direct-message work, run `npm run check`
-   plus `node --check` on any touched browser/shared files, perform the manual check in
-   §10, and update RESUME.md with what changed.
+   and `npm test`, plus `node --check` on any touched browser/shared files, perform the
+   manual check in §10, and update RESUME.md with what changed.
 ```
 
-Option B is already implemented. The prompt now protects that work and forces a decision
+Option B and all seven §8 items are implemented. The prompt still forces a decision
 before the next change.
