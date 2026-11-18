@@ -21,17 +21,20 @@ You are resuming a handover. This file is the source of truth; do not guess.
   `*.local.json` shape. Other devices and the frontend depend on them.
 - **Secrets:** `*.local.json`, `*.identity.json`, and `data/` are gitignored. Never move
   keys, password hashes, or tokens into tracked files.
-- **Services may not be running.** Check ports `3000`/`3100`/`3200`, then start with
-  `npm run hub`, `npm run node`, `npm run staff` (each in its own terminal).
-- **Hub password:** configured locally, plaintext unknown. Do **not** reset it unless the
-  user explicitly asks. If asked, back up `packages/hub/config/hub.local.json` first.
+- **Services may not be running.** Check ports `3000`/`3100`/`3200`, plus `3201` for the
+  temporary second Staff Portal. Start with `npm run hub`, `npm run node`, `npm run staff`.
+- **Temporary test fixture:** the `:3201` portal runs from a throwaway worktree. Leave it
+  running unless the user asks for cleanup; see §7 and README "Temporary local verification setup".
+- **Hub password:** configured locally (reset on 2026-11-18); plaintext is not recorded here.
+  Do **not** reset it unless the user explicitly asks. If asked, back up
+  `packages/hub/config/hub.local.json` first.
 - **Option B is implemented and committed** (pair-scoped `dm:` threads; see §5). Do not
   revert staff direct messages to the shared `private:<agentNodeId>` thread. The leftover
   decisions in §5.4 are still open.
 - **Immediate next step:** all seven §8 items were completed on 2026-11-18 (see §6/§8).
   Review the working tree before committing, then pick a new task. Do not stack unrelated
   changes on top of the completed work.
-- **Before finishing:** run `npm run check` and the manual check in §10.
+- **Before finishing:** run `npm run check` and `npm test`, plus the manual check in §10.
 - **Do not** expose the Hub to the public internet, add an admin "shell" endpoint, or let
   Staff Portals dispatch tasks — those are intentional trust-boundary decisions.
 
@@ -88,10 +91,12 @@ Health checks:
 curl -s http://127.0.0.1:3000/api/health
 curl -s http://127.0.0.1:3100/api/status
 curl -s http://127.0.0.1:3200/api/status
-ss -ltnp | grep -E ':(3000|3100|3200)\b'
+curl -s http://127.0.0.1:3201/api/status   # temporary second staff
+ss -ltnp | grep -E ':(3000|3100|3200|3201)\b'
 ```
 
-Browser tabs to open: **3000** (Hub admin), **3100** (Agent Node), **3200** (Staff Portal).
+Browser tabs to open: **3000** (Hub admin), **3100** (Agent Node), **3200** (Staff Portal),
+and **3201** for the temporary second staff while the verification fixture is in place.
 Press **Ctrl+R** after any HTML/JS edit — static files are served with `no-store`,
 but the open tab still needs a reload. Server files are loaded at start: restart the
 affected component after editing a `server/index.js` (the Hub was restarted for Option B).
@@ -174,7 +179,7 @@ Key properties of this design:
 ### State and limits
 
 - All Hub state is one file: `data/hub-state.json` (gitignored).
-- Messages are capped at 800, events at 500, per-node inbox at 500.
+- Messages are capped at 800, events at 500, per-node inbox at 500, and tasks at 200.
 - Hub config: `packages/hub/config/hub.local.json` (gitignored).
 - Node config: `packages/node/config/node.local.json` (gitignored).
 - Staff config: `packages/staff/config/staff.local.json` (gitignored).
@@ -353,7 +358,8 @@ demo message each time it runs. The `dm:` behavior is covered by §5.3 and the c
 7. Back-compat: keep `private:*` routing/display so existing `data/hub-state.json` messages
    stay readable. New human↔agent threads use `dm:`.
 8. Tests: two staff members message the same agent; each must see only their own thread.
-   A staff message must not trigger the AI. An agent reply must trigger no further reply.
+   A topic message must not trigger the AI; a `dm:` message must; an agent reply must
+   trigger no further reply.
 
 Implementation notes / small deviations:
 
@@ -365,16 +371,16 @@ Implementation notes / small deviations:
   stays reachable. Tasks also still use `private:<nodeId>`.
 - `pair/revoke` with `purgeHistory` now also removes `dm:` messages involving the device.
 - The `--` delimiter means node ids containing `--` cannot be used in `dm:` threads.
-  Current ids (`intern-demo-node`, `intern-demo-staff`) are safe.
-- Not yet covered end-to-end: two different staff members on the same agent. Only one
-  staff device is approved locally, so that must be tested after a second staff portal is
-  approved. Routing and overview filtering are participant-scoped in code.
+  Current ids (`intern-demo-node`, `intern-demo-staff`, `intern-demo-staff-2`) are safe.
+- The two-staff case was verified end-to-end on 2026-11-18 with a temporary second device
+  (§6); leave the fixture running until the user asks for cleanup.
 
 ### 5.4 Open decisions to confirm with the user
 
 - ~~A (quick, shared thread) vs B (correct, pair-scoped)?~~ **B chosen 2026-11-16.**
 - Should all staff invoke agents, or only staff with a configured role?
-- Cooldown/rate limit per staff member and per agent?
+- ~~Cooldown/rate limit per staff member?~~ **Done (2026-11-18):** 10s cooldown. Per-agent
+  cooldown is still open (§8).
 - ~~Show a "thinking…" state in the Staff UI while the Node calls the AI?~~ **Done
   2026-11-18:** Option A, a lightweight client-side indicator in the Staff UI (§6/§8).
 - Does the reply belong in the same conversation only, or also in `# general`?
@@ -437,12 +443,13 @@ async function call(id, deviceId, method, path, body) {
 
 ## 6. Work completed
 
-**Repo snapshot now:** branch `main`. Option B and its docs are committed; run
-`git log -1 --oneline` for the exact commit. The earlier handover is in `c44a0ca` and
-`f4b69e7`. Services are expected on 3000/3100/3200; they may stop when a chat session ends.
+**Repo snapshot now:** branch `main`. All work through 2026-11-18 is committed and pushed;
+run `git log -1 --oneline` for the exact commit. The earlier handover is in `c44a0ca` and
+`f4b69e7`. Services are expected on 3000/3100/3200 (plus 3201 while the temporary fixture
+is in place); they may stop when a chat session ends.
 
-1. **Renamed the demo staff member** to **`Manju (intern staff)`** through the Staff Portal
-   `/api/profile` endpoint (committed). Updated:
+1. **Renamed the demo staff member** to **`Manju (intern staff #1)`** through the Staff
+   Portal `/api/profile` endpoint (committed). Updated:
    - `packages/staff/config/staff.local.json` (gitignored)
    - Hub device entry and online worker entry in `data/hub-state.json` (gitignored)
 2. **Translated every UI string to English** (committed in `c44a0ca`). No CJK characters
@@ -481,8 +488,8 @@ async function call(id, deviceId, method, path, body) {
      deliberately left unchanged — they are part of the signed pairing/discovery contract.
    - §8.4 Tests: `npm test` runs `tests/protocol.test.js` (5 `node:test` cases, zero deps).
      `dmRecipients()` in `packages/shared/protocol.js` exposes the Hub's `dm:` routing for
-     unit tests. A live two-staff e2e still needs a second approved staff device; scoping
-     is covered at protocol level for now.
+     unit tests. The live two-staff e2e was verified on 2026-11-18 with a temporary second
+     device (§7).
    - §8.5 Limits: 30 pairing requests/minute per IP and a 10s per-staff cooldown on
      AI-triggering DMs. Both limits are in-memory and reset on Hub restart.
    - §8.6 Tasks: capped at 200 entries, like messages/events/inbox.
@@ -495,6 +502,11 @@ async function call(id, deviceId, method, path, body) {
    `packages/staff/public/js/app.js`, `packages/staff/public/css/app.css`,
    `tests/protocol.test.js`, plus `README.md`, this file and `STATUS.md`. All of it was
    committed together on 2026-11-18.
+6. **Later fixes on 2026-11-18.** Documented the temporary two-staff fixture in README;
+   made the Hub login gate a visible centred overlay (it had no CSS and the page cannot
+   scroll); fixed the sidebar so pending requests scroll inside their pane instead of
+   covering AUTHORIZED AGENTS; the local Hub password was reset from backup and a new one
+   set by the user. Commits: `0cbbcc7`, `268a845`, `31b2187`.
 
 Verification used:
 
@@ -525,9 +537,6 @@ Manual end-to-end (2026-11-16, Hub restarted on the new code):
 The manual test added a few clearly labelled `dm-check` demo messages to
 `data/hub-state.json` (gitignored).
 
-**Option B and these doc updates are committed and pushed.** Check with
-`git status --short`.
-
 Verification for the 2026-11-18 batch:
 
 ```bash
@@ -555,13 +564,11 @@ not in a browser.
 - Node.js: **v24.22.2**.
 - OpenClaw: **2026.11.3**; agent **`xiaoyi`** is the default.
 - Repo remote (actual): `https://github.com/manjuvallayil/Agent-DashBoard.git`.
-- Hub admin password **is configured** in `hub.local.json`, but the plaintext was not
-  handed over. If unknown, reset it locally:
-  1. stop the Hub;
-  2. edit `packages/hub/config/hub.local.json`, remove the `auth` block or set
-     `"auth": { "passwordHash": "" }`;
-  3. restart the Hub and open `http://127.0.0.1:3000` to create a new password.
-  This affects only this machine (the file is gitignored).
+- Hub admin password **is configured** in `hub.local.json` (reset from backup on 2026-11-18;
+  a new one was set by the user). The plaintext is not recorded here. Do not reset it unless
+  explicitly asked. If asked: back up `packages/hub/config/hub.local.json`, set
+  `"auth": { "passwordHash": "" }`, restart the Hub, and let the user choose a new password
+  of 12+ characters. This affects only this machine (the file is gitignored).
 - Approved demo devices: `intern-demo-node` ("Intern Demo Agent"),
   `intern-demo-staff` ("Manju (intern staff #1)") and the **temporary**
   `intern-demo-staff-2` ("Manju (intern staff #2)") at `http://127.0.0.1:3201`.
@@ -595,8 +602,7 @@ kept for history.
    "<name> is thinking…" bubble in `dm:` agent threads; no server/state changes.
 
 New candidates (not implemented): per-agent cooldown, configurable limits via local
-config, and a Hub-driven thinking state that survives page reload. The two-staff e2e is
-no longer outstanding; it was verified with a temporary device on 2026-11-18.
+config, and a Hub-driven thinking state that survives page reload.
 
 ---
 
@@ -615,7 +621,7 @@ no longer outstanding; it was verified with a temporary device on 2026-11-18.
 ## 10. Definition of done for the next change
 
 - [ ] The behavior change is described here (or in a linked issue).
-- [ ] `npm run check` passes.
+- [ ] `npm run check` and `npm test` pass.
 - [ ] At least one manual end-to-end check: staff sends → Hub → Node → AI → reply visible.
 - [ ] No secret values added to tracked files (`*.local.json` / `*.identity.json` stay gitignored).
 - [ ] `git status --short` reviewed before committing.
@@ -632,20 +638,22 @@ You are resuming work on the Agents HQ repo at /home/jason/Agent-DashBoard.
 
 1. Read docs/RESUME.md in full before doing anything. Then read README.md and the files
    listed in RESUME.md §9.
-2. Run `git status --short` and `git diff --stat`. Option B and the §8 backlog are
-   committed. If the tree is dirty, inspect the changes before touching README.md,
-   STATUS.md, PROMPT.md, or docs/RESUME.md.
+2. Run `git status --short` and `git diff --stat`. All work through 2026-11-18 is committed
+   and pushed. A temporary second Staff Portal at :3201 runs from a throwaway worktree —
+   leave it running unless the user asks for cleanup. If the tree is dirty, inspect changes
+   before touching README.md, STATUS.md, PROMPT.md, or docs/RESUME.md.
 3. Summarize back to me: what the project does, the current git state, and the status of
    RESUME.md §8 (all earlier items are done; new candidates are listed there).
 4. Do NOT change code yet. Ask me what to work on next. Only after I choose should you
    implement it.
 5. Constraints: Node.js >= 22.13, CommonJS, zero npm dependencies, keep endpoint names,
    config keys, element IDs and `*.local.json` shape stable. Never add secrets to tracked
-   files. Never expose the Hub publicly.
+   files. Never expose the Hub publicly. Do not reset the Hub password unless explicitly
+   asked.
 6. When implementing, follow RESUME.md §5.3 for direct-message work, run `npm run check`
    and `npm test`, plus `node --check` on any touched browser/shared files, perform the
    manual check in §10, and update RESUME.md with what changed.
 ```
 
-Option B and all seven §8 items are implemented. The prompt still forces a decision
-before the next change.
+Option B, the seven §8 items and the later UI fixes are implemented. The prompt still
+forces a decision before the next change.
