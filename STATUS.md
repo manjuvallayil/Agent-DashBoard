@@ -11,3 +11,5 @@ Personal work log — Manju
 | 5 | 2026-11-18 | Cleared the §8 backlog: a Reject action for pending devices, in-memory limits on pairing and AI-triggering staff DMs, bounded task history, a lightweight "thinking…" indicator in the Staff Portal, and corrected launcher/update/product naming. `x-pitt-*` protocol tokens were left intact. |
 | 6 | 2026-11-18 | Added zero-dependency automated tests (`npm test`) for pair-scoped DMs and re-verified the full Staff Portal → Hub → Agent Node → OpenClaw reply flow end to end. |
 | 7 | 2026-11-18 | Fixed the Hub login gate: it had no CSS and the page cannot scroll, so the form was unreachable and the pairing/agent lists never loaded. It is now a centred overlay. |
+| 8 | 2026-11-18 | Reset the local Hub password from backup and set a new one in the browser. |
+| 9 | 2026-11-18 | Fixed the left-pane overlap so pairing requests scroll inside their box instead of covering AUTHORIZED AGENTS. |
