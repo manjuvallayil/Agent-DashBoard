@@ -1,6 +1,6 @@
 # Ready-to-paste prompt for a coding agent
 
-Updated: 2026-11-18 · matches `docs/RESUME.md` §11
+Updated: 2026-11-18 · `docs/RESUME.md` remains the source of truth
 
 ```text
 You are resuming work on the Agents HQ repo at /home/jason/Agent-DashBoard.
