@@ -562,8 +562,12 @@ not in a browser.
      `"auth": { "passwordHash": "" }`;
   3. restart the Hub and open `http://127.0.0.1:3000` to create a new password.
   This affects only this machine (the file is gitignored).
-- Approved demo devices: `intern-demo-node` ("Intern Demo Agent") and
-  `intern-demo-staff` ("Manju (intern staff)").
+- Approved demo devices: `intern-demo-node` ("Intern Demo Agent"),
+  `intern-demo-staff` ("Manju (intern staff #1)") and the **temporary**
+  `intern-demo-staff-2` ("Manju (intern staff #2)") at `http://127.0.0.1:3201`.
+  The second portal is a verification fixture from a throwaway worktree; see the
+  "Temporary local verification setup" section in README for why it exists and how
+  to clean it up.
 - Stale pending requests still present: `Gauss`, `Bowen`, `Jane`, `Pisro`, `Pitt`.
 
 ---
@@ -581,8 +585,9 @@ kept for history.
    and the Node discovery fallback say Agents HQ. `x-pitt-*` headers and `PITT_*` packets
    stay unchanged by design — they are part of the signed device protocol.
 4. ~~**No automated tests.**~~ **Done:** `npm test` runs `tests/protocol.test.js` with
-   Node's built-in runner (zero deps), covering pair-scoped DM helpers. A live two-staff
-   e2e still needs a second approved staff device; routing is participant-scoped in code.
+   Node's built-in runner (zero deps), covering pair-scoped DM helpers. The live two-staff
+   e2e was verified on 2026-11-18 with a temporary second device (see README
+   "Temporary local verification setup"); routing is participant-scoped in code.
 5. ~~**No rate limiting.**~~ **Done:** 30 pairing requests/minute per IP and a 10s
    per-staff cooldown on AI-triggering DMs, both in-memory and reset on restart.
 6. ~~**`tasks` are unbounded.**~~ **Done:** capped at 200, like the other bounded lists.
@@ -590,8 +595,8 @@ kept for history.
    "<name> is thinking…" bubble in `dm:` agent threads; no server/state changes.
 
 New candidates (not implemented): per-agent cooldown, configurable limits via local
-config, a Hub-driven thinking state that survives page reload, and a second approved
-staff device for a real two-staff e2e.
+config, and a Hub-driven thinking state that survives page reload. The two-staff e2e is
+no longer outstanding; it was verified with a temporary device on 2026-11-18.
 
 ---
 

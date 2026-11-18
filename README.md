@@ -204,6 +204,34 @@ For an always-on Agent Node, use `scripts/agent-node.service` as a user-level sy
 - API keys, passwords, session cookies, SSH private keys, and model-provider credentials must not be placed in repository files or dashboard forms.
 - Capability reporting identifies whether a tool appears available; it does not reveal secret values.
 
+## Temporary local verification setup
+
+> **Temporary test fixture — not part of a normal installation.** This exists on one
+> developer machine to verify pair-scoped direct messages with two approved staff devices.
+> It is not a second permanent staff member and should not be copied to other installations.
+
+A second Staff Portal runs from a throwaway git worktree at
+`/tmp/opencode/agents-hq-two-staff`, on `http://127.0.0.1:3201`:
+
+| Instance | URL | nodeId | Display name |
+|---|---|---|---|
+| Primary staff | `http://127.0.0.1:3200` | `intern-demo-staff` | Manju (intern staff #1) |
+| Temporary test staff | `http://127.0.0.1:3201` | `intern-demo-staff-2` | Manju (intern staff #2) |
+
+**Why:** to confirm that two staff members messaging the same Agent Node
+(`intern-demo-node`) cannot read each other's `dm:` threads. Each portal sent a tagged
+message and received its own reply; neither thread appeared in the other portal. The Hub's
+`/api/staff/overview` only returns a `dm:` thread to a device that is one of its two
+participants.
+
+Notes:
+- The separate worktree gives the second portal its own gitignored config and RSA identity,
+  leaving the primary portal's files untouched.
+- Its config disables discovery and pins `hubUrl` to `http://127.0.0.1:3000`, because LAN
+  discovery can find a different Hub on this network.
+- Cleanup after sign-off: stop the `:3201` process, remove the worktree, then revoke and
+  purge `intern-demo-staff-2` in the Hub so its test messages are deleted.
+
 ## Repository layout
 
 ```text
