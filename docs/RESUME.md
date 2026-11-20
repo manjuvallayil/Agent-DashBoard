@@ -1,7 +1,7 @@
 # RESUME HERE — Agents HQ handover notes
 
 > **Purpose:** if this chat session is lost, start by reading this file.
-> Last updated: 2026-11-18 · Maintainer: Manju (intern)
+> Last updated: 2026-11-20 · Maintainer: Manju (intern)
 
 ---
 
@@ -509,6 +509,23 @@ is in place); they may stop when a chat session ends.
    scroll); fixed the sidebar so pending requests scroll inside their pane instead of
    covering AUTHORIZED AGENTS; the local Hub password was reset from backup and a new one
    set by the user. Commits: `0cbbcc7`, `268a845`, `31b2187`.
+7. **README flow diagram (2026-11-20).** Kept the original boxed Hub / Agent Node /
+   Staff Portal topology, added a box for the local AI (OpenClaw `xiaoyi`) under the Node,
+   and made the flow accurate: signed `POST /api/register` + admin approval, signed
+   `POST /api/messages`, `requiresReply:true` only for a `dm:` to an Agent Node, the
+   Hub-side `state.inbox[nodeId]` in `data/hub-state.json`, the Node's 3s
+   `GET /api/node/inbox?after=<lastId>` poll, `askAgent()`, the reply via
+   `POST /api/node/messages` with `requiresReply:false` (no loop), and the Staff Portal's
+   10s `POST /api/refresh` → signed `GET /api/staff/overview`. Also clarified that
+   `requiresReply` controls only the AI call: every message is still saved and queued.
+   Docs-only: no endpoint, config key, element id, or `*.local.json` shape changed.
+8. **STATUS.md updates (2026-11-20).** Added a first row summarising the intern's
+   ownership of the staff-DM flow layer (pair-scoped `dm:` helpers/routing, the
+   `requiresReply` decision, reply visibility, cooldown, and thinking UI), explicitly
+   noting that the 3s Node poll, Hub inbox, and AI bridge were pre-existing (Jian).
+   Existing rows renumbered 2–10; attribution checked with `git blame`. Also removed
+   cross-references (`§8`, `Option B`) from the log so it reads standalone, and appended
+   row 11 for today's README flow-diagram work and verification.
 
 Verification used:
 

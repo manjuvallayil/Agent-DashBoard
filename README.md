@@ -5,20 +5,43 @@
 It uses a lightweight **Hub + Agent Node + Staff Portal** architecture:
 
 ```text
-                        ┌────────────────────────┐
-                        │       Agents HQ Hub    │
-                        │  roster · meetings ·   │
-                        │  approvals · audit log │
-                        └───────────┬────────────┘
-                                    │ LAN pairing and signed requests
-              ┌─────────────────────┼──────────────────────┐
-              │                     │                      │
-     ┌────────▼────────┐   ┌────────▼────────┐   ┌────────▼────────┐
-     │   Agent Node    │   │   Agent Node    │   │  Staff Portal   │
-     │ local dashboard │   │ local dashboard │   │ human workspace │
-     │ local AI bridge │   │ local AI bridge │   │ messaging only  │
-     └─────────────────┘   └─────────────────┘   └─────────────────┘
+                       ┌──────────────────────────────────┐
+                       │       Agents HQ Hub :3000        │
+                       │roster · approvals · chat · tasks │
+                       │postMessage(): sets requiresReply │
+                       │    inbox: data/hub-state.json    │
+                       └─────────────────┬────────────────┘
+                                         │ signed POST / GET (all devices)
+                                         │
+                      ┌──────────────────┬────────────────────┐
+                      │                                       │
+                      │                                       │
+    ┌─────────────────┬────────────────┐     ┌────────────────┬───────────────┐
+    │         Agent Node :3100         │     │       Staff Portal :3200       │
+    │   local dashboard + AI bridge    │     │human workspace · messaging only│
+    │      GET inbox · POST reply      │     │POST /register · POST /messages │
+    │   polls every 3s when approved   │     │    POST /refresh every 10s     │
+    └─────────────────┬────────────────┘     └────────────────────────────────┘
+                      │
+                      │  askAgent() only when requiresReply:true
+                      ▼
+    ┌─────────────────┬────────────────┐
+    │       Local AI - OpenClaw        │
+    │          agent: xiaoyi           │
+    │    runs on the node's machine    │
+    └──────────────────────────────────┘
 ```
+
+**Flow for a staff → agent direct message:**
+
+1. Staff clicks **Check In** → browser `POST /api/register` to the local Portal → Portal sends `POST /api/pair/request` to the Hub (first contact is unsigned — no device identity exists yet) → Hub holds it as *pending* until an admin approves/rejects it in the Hub's local browser.
+2. Staff sends a message → browser `POST /api/messages` to the Portal → Portal forwards a **signed** `POST /api/staff/messages` to the Hub → `postMessage()` saves it in `data/hub-state.json`, sets `requiresReply:true` for a `dm:` to an Agent Node (Hub checks the other participant's `clientType`: `node` means agent → true, `staff` → false), and copies it into `state.inbox[agent]` (the inbox lives on the Hub).
+3. Node polls with signed `GET /api/node/inbox?after=<lastId>` every 3s and picks up the query.
+4. Because `requiresReply:true`, the Node calls `askAgent()` → the local `xiaoyi` answers.
+5. Node posts back with signed `POST /api/node/messages` → **Hub tags it `requiresReply:false`** so it never answers its own reply, then stores the answer in the same `dm:` thread and copies it into the staff member's inbox on the Hub.
+6. Staff Portal calls `POST /api/refresh` every 10s → its server does a signed `GET /api/staff/overview` → the answer appears in the thread.
+
+`# general` and staff-to-staff messages are display-only (`requiresReply:false`); only a `dm:` whose other participant is an Agent Node wakes the AI. The flag changes what the Node *does*, not what is stored: every message, `true` or `false`, is saved in `state.messages` and copied into recipients' inboxes — the Node still picks up `false` messages and logs them in its local event feed, it just skips the AI call. GET means "fetch", POST means "deliver". Additional Agent Nodes (each with its own local AI) and Staff Portals attach to the Hub in the same way.
 
 The project is designed to run inside a private network. It does not require a cloud database, and it never stores or displays model API keys in the dashboard.
 
