@@ -32,7 +32,7 @@ You are resuming a handover. This file is the source of truth; do not guess.
   `packages/hub/config/hub.local.json` first.
 - **Option B is implemented and committed** (pair-scoped `dm:` threads; see §5). Do not
   revert staff direct messages to the shared `private:<agentNodeId>` thread. The leftover
-  decisions in §5.4 are still open.
+  decisions in §5.2 are still open.
 - **Immediate next step:** all seven §8 items were completed on 2026-11-18 (see §6/§8).
   Review the working tree before committing, then pick a new task. Do not stack unrelated
   changes on top of the completed work.
@@ -149,6 +149,11 @@ Key properties of this design:
    approved device.
 4. **The Node also works alone.** Its local dashboard and `/api/chat` call the AI
    directly, so it keeps working when the Hub is offline.
+5. **Two hops from the browser.** The Staff Portal browser calls its local server
+   (`POST /api/messages`, unsigned); the Portal signs the forwarded
+   `POST /api/staff/messages` to the Hub. First contact (`POST /api/pair/request`) is
+   unsigned because no identity exists yet. The Hub — not the Node — hard-codes
+   `requiresReply:false` on the Node's reply, so it cannot answer itself.
 
 ---
 
@@ -235,11 +240,11 @@ Only Hub admin messages and tasks did.
 
 **Where it lived before the change:**
 
-- `packages/hub/server/index.js:94` — `/api/staff/messages` previously called
+- `/api/staff/messages` in `packages/hub/server/index.js` previously called
   `postMessage({..., origin:"staff", requiresReply:false, ...})`
-- `packages/hub/server/index.js:95` — admin `/api/messages` uses `requiresReply:true`
-- `packages/hub/server/index.js:66` — `postMessage()` stores the flag and queues the message
-- `packages/node/server/index.js:48` — `pollInbox()` only calls `askAgent()` when
+- admin `/api/messages` in the same file uses `requiresReply:true`
+- `postMessage()` stores the flag and queues the message
+- `pollInbox()` in `packages/node/server/index.js` only calls `askAgent()` when
   `message.requiresReply` is true
 
 **Why the old behavior existed:**
@@ -256,7 +261,7 @@ second issue found while testing (below).
 Verified on 2026-11-13: a signed node message was posted to `private:intern-demo-node`.
 `GET /api/staff/overview` returned **zero** messages for that conversation.
 
-Cause: `packages/hub/server/index.js:92` previously exposed only:
+Cause: `/api/staff/overview` in `packages/hub/server/index.js` previously exposed only:
 
 - all `topic:*` messages;
 - messages in `private:<that staff member's own nodeId>`;
@@ -280,88 +285,33 @@ fix this; legacy `private:*` messages keep the old limitation by design.
 | **C. Reply channel** | Node replies to `private:<senderStaffNodeId>` while its local thread stays `private:<agentNodeId>` | Quick, but the thread appears split and UI needs merging | Small but hacky |
 | **D. Keep as-is** | Staff do not invoke agents directly; Hub admin relays | Safe, least useful | None |
 
-Remaining sequence: automate the scoping tests → consider rate limiting → decide the
-§5.4 UI questions.
+All follow-ups from this decision are done (tests, cooldown, thinking UI — see §6/§8).
+The questions still open with the user are listed in §5.2.
 
-### 5.1 Historical reproduction of the old `private:*` limitation (copy-paste)
+**Legacy limitation (kept for history):** a node's reply in `private:<agentNodeId>` is not
+visible to staff in `/api/staff/overview`, and two staff sharing that thread see each other's
+messages. Old `private:*` messages remain readable by design; all new staff↔agent threads
+use `dm:`. Use the `dm:` check in §5.3 for current behavior.
 
-Run this from the repo root while the Hub is running. It signs a request as the Agent Node,
-writes one clearly labelled demo message to a legacy `private:` thread, then reads the
-Staff Portal overview as Manju. It is retained as a regression demo for legacy threads;
-new behavior should be tested with a `dm:` id instead.
+**Option A sketch was dropped once B shipped.** It would have flipped `requiresReply` on
+staff→agent `private:` messages and widened the overview filter, but two staff would still
+share one agent thread — the privacy problem above. Its full sketch was removed from this
+working file after implementation; the option table above keeps the decision record.
 
-```js
-// Save as /tmp/check-staff-reply.js, then: node /tmp/check-staff-reply.js
-const fs = require("fs"), crypto = require("crypto");
-const nodeCfg = JSON.parse(fs.readFileSync("packages/node/config/node.local.json"));
-const nodeId  = JSON.parse(fs.readFileSync("packages/node/config/node.identity.json"));
-const staffCfg = JSON.parse(fs.readFileSync("packages/staff/config/staff.local.json"));
-const staffId  = JSON.parse(fs.readFileSync("packages/staff/config/staff.identity.json"));
+### 5.1 What shipped — Option B (pair-scoped, implemented 2026-11-16)
 
-function signed(id, deviceId, method, path, body) {
-  const raw = body ? JSON.stringify(body) : "", ts = Date.now();
-  const payload = `${ts}\n${method}\n${path}\n${raw}`;
-  const sig = crypto.sign("sha256", Buffer.from(payload), id.privateKey).toString("base64");
-  return { method, headers: { "content-type": "application/json", "x-pitt-node": deviceId,
-    "x-pitt-time": String(ts), "x-pitt-signature": sig }, body: raw || undefined };
-}
-
-(async () => {
-  const convo = `private:${nodeCfg.nodeId}`;
-  const posted = await fetch("http://127.0.0.1:3000/api/node/messages",
-    signed(nodeId, nodeCfg.nodeId, "POST", "/api/node/messages",
-      { text: "TEST: agent-side reply visibility", conversationId: convo }));
-  console.log("node post:", posted.status); // expected: 201
-
-  const res = await fetch("http://127.0.0.1:3000/api/staff/overview",
-    signed(staffId, staffCfg.nodeId, "GET", "/api/staff/overview"));
-  const data = await res.json();
-  const visible = (data.messages || []).filter(m => m.conversationId === convo);
-  console.log("staff sees:", visible.map(m => `${m.from}: ${m.text}`));
-  // current buggy result: [] even though the node posted 201
-})();
-```
-
-Expected result: `[]` — this script demonstrates the legacy limitation and still adds one
-demo message each time it runs. The `dm:` behavior is covered by §5.3 and the checks in §6.
-
-### 5.2 Implementation sketch — Option A (historical, not chosen)
-
-1. `packages/hub/server/index.js` `/api/staff/messages`:
-   - compute `isAgentDirect = conversationId.startsWith("private:") && target &&
-     !target.revoked && (target.clientType || "node") !== "staff"`;
-   - pass `requiresReply: isAgentDirect` to `postMessage`.
-2. Same file, `/api/staff/overview`:
-   - build `participated = new Set(state.messages.filter(m =>
-     m.fromNodeId === device.nodeId && m.conversationId.startsWith("private:"))
-     .map(m => m.conversationId))`;
-   - include messages whose `conversationId` is in `participated`.
-3. No Node change: it already replies in the same `conversationId`.
-4. Caveat: `private:<agentNodeId>` is one shared thread. Do not ship this silently if more
-   than one staff member will message the same agent. Record the limitation in this file.
-
-### 5.3 Implementation sketch — Option B (pair-scoped, implemented 2026-11-16)
-
-1. Add one helper used by both sides, e.g. in `packages/shared/protocol.js`:
-   `conversationFor(a, b)` → `` `dm:${[a, b].sort().join("--")}` ``.
-2. `packages/hub/server/index.js` `recipients()`: if the id starts with `dm:`, split on
-   `--`, return the participants (minus `exclude`) that exist and are not revoked.
-3. `/api/staff/messages`: accept `dm:` ids, verify the staff `device.nodeId` is one of the
-   two participants, verify the other is approved; set
-   `requiresReply = origin is staff && other participant is an agent node`.
-   Never set `requiresReply` for `topic:*`.
-4. `/api/staff/overview`: include messages where the staff id is a `dm:` participant.
-   Use a small `isParticipant(conversationId, nodeId)` helper.
-5. Staff UI (`packages/staff/public/js/app.js`):
-   - private buttons/options must use `conversationFor(latest.nodeId, p.nodeId)`;
-   - `current` may be a `dm:` id; the filter stays `m.conversationId === current`.
-6. Node needs no protocol change: it receives the `dm:` id, replies to the same id, and
-   `recipients()` delivers the reply to the staff member.
-7. Back-compat: keep `private:*` routing/display so existing `data/hub-state.json` messages
-   stay readable. New human↔agent threads use `dm:`.
-8. Tests: two staff members message the same agent; each must see only their own thread.
-   A topic message must not trigger the AI; a `dm:` message must; an agent reply must
-   trigger no further reply.
+- `packages/shared/protocol.js`: `conversationFor(a, b)` → `dm:<sorted a>--<b>`, plus
+  `conversationParticipants()`, `isParticipant()`, and `dmRecipients()` for tests.
+- `packages/hub/server/index.js`: `recipients()` routes `dm:` ids only to the two participants;
+  `/api/staff/messages` validates membership and the approved counterpart and sets
+  `requiresReply` only for a `dm:` to an Agent Node; `/api/staff/overview` includes `dm:`
+  threads for participants; `purgeHistory` also drops `dm:` messages.
+- `packages/staff/public/js/app.js`: private buttons use `dm:` ids (with a two-line browser
+  copy of `conversationFor()`). No Node change was needed — it replies in the same id.
+- Legacy `private:*` routing/display stays for old history; new staff↔agent threads never
+  use it. Topic and staff-to-staff messages stay `requiresReply:false`.
+- Tests (§6/§8) cover two staff sharing one agent, `topic:*` not waking the AI, and an
+  agent reply not triggering a second reply.
 
 Implementation notes / small deviations:
 
@@ -377,7 +327,7 @@ Implementation notes / small deviations:
 - The two-staff case was verified end-to-end on 2026-11-18 with a temporary second device
   (§6); leave the fixture running until the user asks for cleanup.
 
-### 5.4 Open decisions to confirm with the user
+### 5.2 Open decisions to confirm with the user
 
 - ~~A (quick, shared thread) vs B (correct, pair-scoped)?~~ **B chosen 2026-11-16.**
 - Should all staff invoke agents, or only staff with a configured role?
@@ -387,7 +337,7 @@ Implementation notes / small deviations:
   2026-11-18:** Option A, a lightweight client-side indicator in the Staff UI (§6/§8).
 - Does the reply belong in the same conversation only, or also in `# general`?
 
-### 5.5 Verify the new `dm:` behavior (copy-paste)
+### 5.3 Verify the new `dm:` behavior (copy-paste)
 
 Run this while the Hub on `:3000`, the Agent Node on `:3100`, and OpenClaw are available.
 It writes labelled demo messages to `data/hub-state.json` (gitignored) and makes one real
@@ -511,21 +461,23 @@ is in place); they may stop when a chat session ends.
    set by the user. Commits: `0cbbcc7`, `268a845`, `31b2187`.
 7. **README flow diagram (2026-11-20).** Kept the original boxed Hub / Agent Node /
    Staff Portal topology, added a box for the local AI (OpenClaw `xiaoyi`) under the Node,
-   and made the flow accurate: signed `POST /api/register` + admin approval, signed
-   `POST /api/messages`, `requiresReply:true` only for a `dm:` to an Agent Node, the
-   Hub-side `state.inbox[nodeId]` in `data/hub-state.json`, the Node's 3s
+   and made the six-step flow accurate: browser `POST /api/register` to the Portal →
+   unsigned `POST /api/pair/request` to the Hub + admin approval; browser
+   `POST /api/messages` to the Portal → signed `POST /api/staff/messages` to the Hub;
+   `requiresReply:true` only for a `dm:` to an Agent Node; the Hub-side
+   `state.inbox[nodeId]` in `data/hub-state.json`, the Node's 3s
    `GET /api/node/inbox?after=<lastId>` poll, `askAgent()`, the reply via
-   `POST /api/node/messages` with `requiresReply:false` (no loop), and the Staff Portal's
-   10s `POST /api/refresh` → signed `GET /api/staff/overview`. Also clarified that
-   `requiresReply` controls only the AI call: every message is still saved and queued.
+   `POST /api/node/messages` (Hub tags the reply `requiresReply:false`, no loop), and the
+   Staff Portal's 10s `POST /api/refresh` → signed `GET /api/staff/overview`. Also clarified
+   that `requiresReply` controls only the AI call: every message is still saved and queued,
+   and the Node logs `false` messages but does not show them in its chat pane.
    Docs-only: no endpoint, config key, element id, or `*.local.json` shape changed.
-8. **STATUS.md updates (2026-11-20).** Added a first row summarising the intern's
-   ownership of the staff-DM flow layer (pair-scoped `dm:` helpers/routing, the
-   `requiresReply` decision, reply visibility, cooldown, and thinking UI), explicitly
-   noting that the 3s Node poll, Hub inbox, and AI bridge were pre-existing (Jian).
-   Existing rows renumbered 2–10; attribution checked with `git blame`. Also removed
-   cross-references (`§8`, `Option B`) from the log so it reads standalone, and appended
-   row 11 for today's README flow-diagram work and verification.
+8. **STATUS.md updates (2026-11-20).** Added a top contribution-summary row plus a
+   row 4 design-decision clause (separate thread per pair — replies were invisible and
+   staff shared one agent thread); renumbered rows, removed cross-references, and
+   appended row 11 for the README flow work. Attribution checked with `git blame`.
+   STATUS.md is Manju's durable interview reference; this file stays the temporary
+   working file.
 
 Verification used:
 
